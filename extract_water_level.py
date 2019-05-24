@@ -50,16 +50,17 @@ def getUTCOffset(utcOffset, default=False):
     else:
         if default:
             print("UTC_OFFSET :", utcOffset, " not in correct format. Using +00:00")
-            return datetime.timedelta()
+            return timedelta()
         else:
             return False
 
     if utcOffset[0] == "-":  # If timestamp in negtive zone, add it to current time
         offset_str = utcOffset[1:].split(':')
-        return datetime.timedelta(hours=int(offset_str[0]), minutes=int(offset_str[1]))
+        return timedelta(hours=int(offset_str[0]), minutes=int(offset_str[1]))
     if utcOffset[0] == "+":  # If timestamp in positive zone, deduct it to current time
         offset_str = utcOffset[1:].split(':')
-        return datetime.timedelta(hours=-1 * int(offset_str[0]), minutes=-1 * int(offset_str[1]))
+        return timedelta(hours=-1 * int(offset_str[0]), minutes=-1 * int(offset_str[1]))
+
 
 def get_water_level_of_channels(lines, channels=None):
     """
@@ -90,101 +91,101 @@ def isfloat(value):
     except ValueError:
         return False
 
-#
-# def save_forecast_timeseries(my_adapter, my_timeseries, my_model_date, my_model_time, my_opts):
-#     print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', my_opts)
-#
-#     # Convert date time with offset
-#     date_time = datetime.strptime('%s %s' % (my_model_date, my_model_time), Constants.COMMON_DATE_TIME_FORMAT)
-#     if 'utcOffset' in my_opts:
-#         date_time = date_time + my_opts['utcOffset']
-#         my_model_date = date_time.strftime('%Y-%m-%d')
-#         my_model_time = date_time.strftime('%H:%M:%S')
-#
-#     # If there is an offset, shift by offset before proceed
-#     forecast_timeseries = []
-#     if 'utcOffset' in my_opts:
-#         print('Shit by utcOffset:', my_opts['utcOffset'].resolution)
-#         for item in my_timeseries:
-#             forecast_timeseries.append(
-#                 [datetime.strptime(item[0], Constants.COMMON_DATE_TIME_FORMAT) + my_opts['utcOffset'], item[1]])
-#
-#         forecast_timeseries = extractForecastTimeseries(forecast_timeseries, my_model_date, my_model_time, by_day=True)
-#     else:
-#         forecast_timeseries = extractForecastTimeseries(my_timeseries, my_model_date, my_model_time, by_day=True)
-#
-#     # print(forecast_timeseries[:10])
-#     extracted_timeseries = extractForecastTimeseriesInDays(forecast_timeseries)
-#
-#     # for ll in extractedTimeseries :
-#     #     print(ll)
-#
-#     # Check whether existing station
-#     force_insert = my_opts.get('forceInsert', False)
-#     station = my_opts.get('station', '')
-#     source = my_opts.get('source', 'FLO2D')
-#     is_station_exists = adapter.get_station({'name': station})
-#     if is_station_exists is None:
-#         print('WARNING: Station %s does not exists. Continue with others.' % station)
-#         return
-#     # TODO: Create if station does not exists.
-#
-#     run_name = my_opts.get('run_name', 'Cloud-1')
-#     less_char_index = run_name.find('<')
-#     greater_char_index = run_name.find('>')
-#     if -1 < less_char_index > -1 < greater_char_index:
-#         start_str = run_name[:less_char_index]
-#         date_format_str = run_name[less_char_index + 1:greater_char_index]
-#         end_str = run_name[greater_char_index + 1:]
-#         try:
-#             date_str = date_time.strftime(date_format_str)
-#             run_name = start_str + date_str + end_str
-#         except ValueError:
-#             raise ValueError("Incorrect data format " + date_format_str)
-#
-#     types = [
-#         'Forecast-0-d',
-#         'Forecast-1-d-after',
-#         'Forecast-2-d-after',
-#         'Forecast-3-d-after',
-#         'Forecast-4-d-after',
-#         'Forecast-5-d-after',
-#         'Forecast-6-d-after',
-#         'Forecast-7-d-after',
-#         'Forecast-8-d-after',
-#         'Forecast-9-d-after',
-#         'Forecast-10-d-after',
-#         'Forecast-11-d-after',
-#         'Forecast-12-d-after',
-#         'Forecast-13-d-after',
-#         'Forecast-14-d-after'
-#     ]
-#     meta_data = {
-#         'station': station,
-#         'variable': 'WaterLevel',
-#         'unit': 'm',
-#         'type': types[0],
-#         'source': source,
-#         'name': run_name
-#     }
-#     for i in range(0, min(len(types), len(extracted_timeseries))):
-#         meta_data_copy = copy.deepcopy(meta_data)
-#         meta_data_copy['type'] = types[i]
-#         event_id = my_adapter.get_event_id(meta_data_copy)
-#         if event_id is None:
-#             event_id = my_adapter.create_event_id(meta_data_copy)
-#             print('HASH SHA256 created: ', event_id)
-#         else:
-#             print('HASH SHA256 exists: ', event_id)
-#             if not force_insert:
-#                 print('Timeseries already exists. User --force to update the existing.\n')
-#                 continue
-#
-#         # for l in timeseries[:3] + timeseries[-2:] :
-#         #     print(l)
-#         row_count = my_adapter.insert_timeseries(event_id, extracted_timeseries[i], force_insert)
-#         print('%s rows inserted.\n' % row_count)
-#         # -- END OF SAVE_FORECAST_TIMESERIES
+
+def save_forecast_timeseries(my_adapter, my_timeseries, my_model_date, my_model_time, my_opts):
+    print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', my_opts)
+
+    # Convert date time with offset
+    date_time = datetime.strptime('%s %s' % (my_model_date, my_model_time), Constants.COMMON_DATE_TIME_FORMAT)
+    if 'utcOffset' in my_opts:
+        date_time = date_time + my_opts['utcOffset']
+        my_model_date = date_time.strftime('%Y-%m-%d')
+        my_model_time = date_time.strftime('%H:%M:%S')
+
+    # If there is an offset, shift by offset before proceed
+    forecast_timeseries = []
+    if 'utcOffset' in my_opts:
+        print('Shit by utcOffset:', my_opts['utcOffset'].resolution)
+        for item in my_timeseries:
+            forecast_timeseries.append(
+                [datetime.strptime(item[0], Constants.COMMON_DATE_TIME_FORMAT) + my_opts['utcOffset'], item[1]])
+
+        forecast_timeseries = extractForecastTimeseries(forecast_timeseries, my_model_date, my_model_time, by_day=True)
+    else:
+        forecast_timeseries = extractForecastTimeseries(my_timeseries, my_model_date, my_model_time, by_day=True)
+
+    # print(forecast_timeseries[:10])
+    extracted_timeseries = extractForecastTimeseriesInDays(forecast_timeseries)
+
+    # for ll in extractedTimeseries :
+    #     print(ll)
+
+    # Check whether existing station
+    force_insert = my_opts.get('forceInsert', False)
+    station = my_opts.get('station', '')
+    source = my_opts.get('source', 'FLO2D')
+    is_station_exists = adapter.get_station({'name': station})
+    if is_station_exists is None:
+        print('WARNING: Station %s does not exists. Continue with others.' % station)
+        return
+    # TODO: Create if station does not exists.
+
+    run_name = my_opts.get('run_name', 'Cloud-1')
+    less_char_index = run_name.find('<')
+    greater_char_index = run_name.find('>')
+    if -1 < less_char_index > -1 < greater_char_index:
+        start_str = run_name[:less_char_index]
+        date_format_str = run_name[less_char_index + 1:greater_char_index]
+        end_str = run_name[greater_char_index + 1:]
+        try:
+            date_str = date_time.strftime(date_format_str)
+            run_name = start_str + date_str + end_str
+        except ValueError:
+            raise ValueError("Incorrect data format " + date_format_str)
+
+    types = [
+        'Forecast-0-d',
+        'Forecast-1-d-after',
+        'Forecast-2-d-after',
+        'Forecast-3-d-after',
+        'Forecast-4-d-after',
+        'Forecast-5-d-after',
+        'Forecast-6-d-after',
+        'Forecast-7-d-after',
+        'Forecast-8-d-after',
+        'Forecast-9-d-after',
+        'Forecast-10-d-after',
+        'Forecast-11-d-after',
+        'Forecast-12-d-after',
+        'Forecast-13-d-after',
+        'Forecast-14-d-after'
+    ]
+    meta_data = {
+        'station': station,
+        'variable': 'WaterLevel',
+        'unit': 'm',
+        'type': types[0],
+        'source': source,
+        'name': run_name
+    }
+    for i in range(0, min(len(types), len(extracted_timeseries))):
+        meta_data_copy = copy.deepcopy(meta_data)
+        meta_data_copy['type'] = types[i]
+        event_id = my_adapter.get_event_id(meta_data_copy)
+        if event_id is None:
+            event_id = my_adapter.create_event_id(meta_data_copy)
+            print('HASH SHA256 created: ', event_id)
+        else:
+            print('HASH SHA256 exists: ', event_id)
+            if not force_insert:
+                print('Timeseries already exists. User --force to update the existing.\n')
+                continue
+
+        # for l in timeseries[:3] + timeseries[-2:] :
+        #     print(l)
+        row_count = my_adapter.insert_timeseries(event_id, extracted_timeseries[i], force_insert)
+        print('%s rows inserted.\n' % row_count)
+        # -- END OF SAVE_FORECAST_TIMESERIES
 
 
 if __name__=="__main__":
@@ -247,30 +248,30 @@ if __name__=="__main__":
         forceInsert = read_attribute_from_config_file('forceInsert', config, False)
 
         # source details
-        model = read_attribute_from_config_file('model', config)
-        version = read_attribute_from_config_file('version', config)
+        model = read_attribute_from_config_file('model', config, True)
+        version = read_attribute_from_config_file('version', config, True)
 
         # unit details
-        unit = read_attribute_from_config_file('unit', config)
-        unit_type = UnitType.getType(read_attribute_from_config_file('unit_type', config))
+        unit = read_attribute_from_config_file('unit', config, True)
+        unit_type = UnitType.getType(read_attribute_from_config_file('unit_type', config, True))
 
         # variable details
-        variable = read_attribute_from_config_file('variable', config)
+        variable = read_attribute_from_config_file('variable', config, True)
 
         # connection params
-        host = read_attribute_from_config_file('host', config)
-        user = read_attribute_from_config_file('user', config)
-        password = read_attribute_from_config_file('password', config)
-        db = read_attribute_from_config_file('db', config)
-        port = read_attribute_from_config_file('port', config)
+        host = read_attribute_from_config_file('host', config, True)
+        user = read_attribute_from_config_file('user', config, True)
+        password = read_attribute_from_config_file('password', config, True)
+        db = read_attribute_from_config_file('db', config, True)
+        port = read_attribute_from_config_file('port', config, True)
 
-        pool = get_Pool(host=host, port=port, user=user, password=password, db=db)
+        # pool = get_Pool(host=host, port=port, user=user, password=password, db=db)
 
         # wrf_v3_stations = get_wrfv3_stations(pool)
 
-        variable_id = get_variable_id(pool=pool, variable=variable)
-        unit_id = get_unit_id(pool=pool, unit=unit, unit_type=unit_type)
-        source_id = get_source_id(pool=pool, model=model, version=version)
+        # variable_id = get_variable_id(pool=pool, variable=variable)
+        # unit_id = get_unit_id(pool=pool, unit=unit, unit_type=unit_type)
+        # source_id = get_source_id(pool=pool, model=model, version=version)
 
         flo2d_source = {"CHANNEL_CELL_MAP": {"179": "Wellawatta Canal-St Peters College", "220": "Dehiwala Canal", "261": "Mutwal Outfall", "387": "Swarna Rd-Wellawatta", "388": "Thummodara", "475": "Babapulle", "545": "Ingurukade Jn", "592": "Torrinton", "616": "Nagalagam Street", "618": "Nagalagam Street River", "660": "OUSL-Narahenpita Rd", "684": "Dematagoda Canal-Orugodawatta", "813": "Kirimandala Mw", "823": "LesliRanagala Mw", "885": "OUSL-Nawala Kirulapana Canal", "912": "Kittampahuwa", "973": "Near SLLRDC", "991": "Kalupalama", "1062": "Yakbedda", "1161": "Kittampahuwa River", "1243": "Vivekarama Mw", "1333": "Wellampitiya", "1420": "Madinnagoda", "1517": "Kotte North Canal", "1528": "Harwad Band", "1625": "Kotiyagoda", "1959": "Koratuwa Rd", "2174": "Weliwala Pond", "2371": "JanakalaKendraya", "2395": "Kelani Mulla Outfall", "2396": "Salalihini-River", "2597": "Old Awissawella Rd", "2693": "Talatel Culvert", "2695": "Wennawatta", "3580": "Ambatale Outfull1", "3673": "Ambatale River", "3919": "Amaragoda", "4192": "Malabe"}, "FLOOD_PLAIN_CELL_MAP": {"24": "Baira Lake Nawam Mw", "153": "Baira Lake Railway", "1838": "Polduwa-Parlimant Rd", "1842": "Abagaha Jn", "2669": "Parlimant Lake Side", "2686": "Aggona", "2866": "Kibulawala 1", "2874": "Rampalawatta"}}
 
@@ -365,14 +366,10 @@ if __name__=="__main__":
 
         print('Processing FLO2D model on', appDir)
 
-        # Check BASE.OUT file exists
+        # Check HYCHAN.OUT file exists
         if not os.path.exists(HYCHAN_OUT_FILE_PATH):
             print('Unable to find file : ', HYCHAN_OUT_FILE_PATH)
             sys.exit()
-
-        # Create OUTPUT Directory
-        if not os.path.exists(OUTPUT_DIR_PATH):
-            os.makedirs(OUTPUT_DIR_PATH)
 
         # Calculate the size of time series
         bufsize = 65536
@@ -437,7 +434,7 @@ if __name__=="__main__":
                         baseTime = datetime.strptime('%s %s' % (start_date, start_time), '%Y-%m-%d %H:%M:%S')
                         timeseries = []
                         elementNo = waterLevelLines[0].split()[5]
-                        print('Extracted Cell No', elementNo, CHANNEL_CELL_MAP[elementNo])
+                        # print('Extracted Cell No', elementNo, CHANNEL_CELL_MAP[elementNo])
                         for ts in waterLevelLines[1:]:
                             v = ts.split()
                             if len(v) < 1:
@@ -456,41 +453,18 @@ if __name__=="__main__":
                             dateAndTime = currentStepTime.strftime("%Y-%m-%d %H:%M:%S")
                             timeseries.append([dateAndTime, value])
 
-                        # Create Directory
-                        if not os.path.exists(WATER_LEVEL_DIR_PATH):
-                            os.makedirs(WATER_LEVEL_DIR_PATH)
-                        # Get Time stamp Ref:http://stackoverflow.com/a/13685221/1461060
-                        ModelTime = float(waterLevelLines[1].split()[3])
-                        fileModelTime = datetime.strptime(date, '%Y-%m-%d')
-                        fileModelTime = fileModelTime + timedelta(hours=ModelTime)
-                        dateAndTime = fileModelTime.strftime("%Y-%m-%d_%H-%M-%S")
-                        # Create files
-                        fileName = WATER_LEVEL_FILE.rsplit('.', 1)
-                        stationName = CHANNEL_CELL_MAP[elementNo].replace(' ', '_')
-                        fileTimestamp = "%s_%s" % (date, time.replace(':', '-'))
-                        fileName = "%s-%s-%s.%s" % (fileName[0], stationName, fileTimestamp, fileName[1])
-                        WATER_LEVEL_FILE_PATH = path_join(WATER_LEVEL_DIR_PATH, fileName)
-                        csvWriter = csv.writer(open(WATER_LEVEL_FILE_PATH, 'w'), delimiter=',', quotechar='|')
-                        csvWriter.writerows(timeseries)
                         # Save Forecast values into Database
                         opts = {
                                 'forceInsert': forceInsert,
                                 'station'    : CHANNEL_CELL_MAP[elementNo],
                                 'run_name'   : runName
                                 }
-                        print('>>>>>', opts)
+                        # print('>>>>>', opts)
                         if utcOffset!=timedelta():
                             opts['utcOffset'] = utcOffset
-##############################################################################################
-                        print("######################## HYCHAN.OUT ##################################")
-                        print("Timeseries : ", timeseries)
-                        print("Date: ", date)
-                        print("Time: ", time)
-                        print("Opts: ", opts)
-                        print("##########################################################")
 
-#############################################################################################
-                        # save_forecast_timeseries(adapter, timeseries, date, time, opts)
+                        # Push timeseries to database
+                        save_forecast_timeseries(adapter, timeseries, date, time, opts)
 
                         isWaterLevelLines = False
                         isSeriesComplete = False
@@ -499,12 +473,16 @@ if __name__=="__main__":
             # -- END while loop
 
         #################################################################
-        # Extract Flood Plain water elevations from BASE.OUT file       #
+        # Extract Flood Plain water elevations from HYCHAN.OUT file       #
         #################################################################
-        print('appDir : ', appDir)
         TIMEDEP_FILE_PATH = path_join(appDir, TIMEDEP_FILE)
+
+        if not os.path.exists(TIMEDEP_FILE_PATH):
+            print('Unable to find file : ', TIMEDEP_FILE_PATH)
+            sys.exit()
+
         print('TIMEDEP_FILE_PATH : ', TIMEDEP_FILE_PATH)
-        print('Extract Flood Plain Water Level Result of FLO2D on', date, '@', time, 'with Bast time of', start_date,
+        print('Extract Flood Plain Water Level Result of FLO2D on', date, '@', time, 'with Base time of', start_date,
                 '@',
                 start_time)
         with open(TIMEDEP_FILE_PATH) as infile:
@@ -516,13 +494,12 @@ if __name__=="__main__":
                     break
                 for line in lines:
                     if len(line.split())==1:
+                        # continue
                         if len(waterLevelLines) > 0:
                             waterLevels = get_water_level_of_channels(waterLevelLines, FLOOD_ELEMENT_NUMBERS)
-                            # Create Directory
-                            if not os.path.exists(WATER_LEVEL_DIR_PATH):
-                                os.makedirs(WATER_LEVEL_DIR_PATH)
+
                             # Get Time stamp Ref:http://stackoverflow.com/a/13685221/1461060
-                            print(waterLevelLines[0].split())
+                            # print('waterLevelLines[0].split() : ', waterLevelLines[0].split())
                             ModelTime = float(waterLevelLines[0].split()[0])
                             baseTime = datetime.strptime('%s %s' % (start_date, start_time), '%Y-%m-%d %H:%M:%S')
                             currentStepTime = baseTime + timedelta(hours=ModelTime)
@@ -542,19 +519,9 @@ if __name__=="__main__":
                             waterLevelLines = []
                     waterLevelLines.append(line)
 
-            # Create files
-            print('WATER_LEVEL_DIR_PATH : ', WATER_LEVEL_DIR_PATH)
-            print('len(FLOOD_ELEMENT_NUMBERS) : ', len(FLOOD_ELEMENT_NUMBERS))
+            # print('len(FLOOD_ELEMENT_NUMBERS) : ', len(FLOOD_ELEMENT_NUMBERS))
             for elementNo in FLOOD_ELEMENT_NUMBERS:
-                fileName = WATER_LEVEL_FILE.rsplit('.', 1)
-                stationName = FLOOD_PLAIN_CELL_MAP[elementNo].replace(' ', '_')
-                fileTimestamp = "%s_%s" % (date, time.replace(':', '-'))
-                fileName = "%s-%s-%s.%s" % \
-                           (fileName[0], FLOOD_PLAIN_CELL_MAP[elementNo].replace(' ', '_'), fileTimestamp, fileName[1])
-                WATER_LEVEL_FILE_PATH = path_join(WATER_LEVEL_DIR_PATH, fileName)
-                print('WATER_LEVEL_FILE_PATH : ', WATER_LEVEL_FILE_PATH)
-                csvWriter = csv.writer(open(WATER_LEVEL_FILE_PATH, 'w'), delimiter=',', quotechar='|')
-                csvWriter.writerows(waterLevelSeriesDict[elementNo])
+
                 # Save Forecast values into Database
                 opts = {
                         'forceInsert': forceInsert,
@@ -564,18 +531,11 @@ if __name__=="__main__":
                         }
                 if utcOffset!=timedelta():
                     opts['utcOffset'] = utcOffset
-#####################################################################################################
-                print("############################ BASE.OUT ############################################################")
-                print("waterLevelSeriesDict[elementNo]: ", waterLevelSeriesDict[elementNo])
-                print("Date: ", date)
-                print("Time: ", time)
-                print("Opts: ", opts)
-                print("######################################################################################")
-######################################################################################################
-                # save_forecast_timeseries(adapter, waterLevelSeriesDict[elementNo], date, time, opts)
-                print('Extracted Cell No', elementNo, FLOOD_PLAIN_CELL_MAP[elementNo], 'into -> ', fileName)
 
-        pool.destroy()
+                # Push timeseries to database
+                save_forecast_timeseries(adapter, waterLevelSeriesDict[elementNo], date, time, opts)
+
+        # pool.destroy()
 
     except Exception as e:
         logger.error('JSON config data loading error.')

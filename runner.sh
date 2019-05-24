@@ -3,10 +3,11 @@
 # Print execution date time
 echo `date`
 
-echo "Changing into ~/flo2d_data_pusher"
-cd /home/uwcc-admin/flo2d_data_pusher
-echo "Inside `pwd`"
+#echo "Changing into ~/flo2d_data_pusher"
+#cd /home/uwcc-admin/flo2d_data_pusher
+#echo "Inside `pwd`"
 
+cd /home/shadhini/Documents/CUrW/Flo2D
 
 # If no venv (python3 virtual environment) exists, then create one.
 if [ ! -d "venv" ]
@@ -38,7 +39,7 @@ fi
 
 # Push WRFv3 data into the database
 echo "Running data_pusher.py. Logs Available in wrfv3_data_pusher.log file."
-python flo2d_data_pusher.py >> flo2d_data_pusher.log 2>&1
+python extract_water_level.py >> flo2d_data_pusher.log 2>&1
 
 # Deactivating virtual environment
 echo "Deactivating virtual environment"
