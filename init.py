@@ -1,11 +1,16 @@
 import traceback
 import json
 
-from db_adapter.base import get_Pool
+from db_adapter.base import get_Pool, destroy_Pool
 
 from db_adapter.curw_fcst.source import get_source_id, add_source
 from db_adapter.curw_fcst.variable import get_variable_id, add_variable
 from db_adapter.curw_fcst.unit import get_unit_id, add_unit, UnitType
+from db_adapter.curw_fcst.station import add_station, StationEnum
+from db_adapter.constants import CURW_FCST_HOST, CURW_FCST_USERNAME, CURW_FCST_PASSWORD, CURW_FCST_PORT, CURW_FCST_DATABASE
+from db_adapter.curw_sim.constants import FLO2D_250, FLO2D_150
+
+from db_adapter.csv_utils import read_csv
 
 from logger import logger
 
@@ -13,90 +18,89 @@ from logger import logger
 if __name__=="__main__":
 
     try:
-        config = json.loads(open('config.json').read())
+
+        #####################################################
+        # Initialize parameters for FLO2D_250 and FLO2D_150 #
+        #####################################################
 
         # source details
-        FLO2D_250_params = {}
-
-
-        if 'model' in config and (config['model']!=""):
-            model = config['model']
-        else:
-            logger.error("model not specified in config file.")
-            exit(1)
-
-        if 'version' in config and (config['version']!=""):
-            version = config['version']
-        else:
-            logger.error("version not specified in config file.")
-            exit(1)
-
-        if 'wrf_model_list' in config and (config['wrf_model_list']!=""):
-            wrf_model_list = config['wrf_model_list']
-            wrf_model_list = wrf_model_list.split(',')
-        else:
-            logger.error("wrf_model_list not specified in config file.")
-            exit(1)
+        FLO2D_250_params = json.loads(open('flo2d_250.json').read())
+        FLO2D_150_params = json.loads(open('flo2d_150.json').read())
+        FLO2D_model = 'FLO2D'
+        FLO2D_250_version = '250'
+        FLO2D_150_version = '150'
 
         # unit details
-        if 'unit' in config and (config['unit']!=""):
-            unit = config['unit']
-        else:
-            logger.error("unit not specified in config file.")
-            exit(1)
-
-        if 'unit_type' in config and (config['unit_type']!=""):
-            unit_type = UnitType.getType(config['unit_type'])
-        else:
-            logger.error("unit_type not specified in config file.")
-            exit(1)
+        unit = 'm'
+        unit_type = UnitType.getType('Instantaneous')
 
         # variable details
-        if 'variable' in config and (config['variable']!=""):
-            variable = config['variable']
-        else:
-            logger.error("variable not specified in config file.")
-            exit(1)
+        variable = 'WaterLevel'
 
-        # connection params
-        if 'host' in config and (config['host']!=""):
-            host = config['host']
-        else:
-            logger.error("host not specified in config file.")
-            exit(1)
+        # station details
+        flo2d_250_grids = read_csv('flo2d_250m.csv')
+        flo2d_150_grids = read_csv('flo2d_150m.csv')
 
-        if 'user' in config and (config['user']!=""):
-            user = config['user']
-        else:
-            logger.error("user not specified in config file.")
-            exit(1)
+        # pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD,
+        #         db=CURW_FCST_DATABASE)
 
-        if 'password' in config and (config['password']!=""):
-            password = config['password']
-        else:
-            logger.error("password not specified in config file.")
-            exit(1)
+        #########
+        # test
+        ##########
+        USERNAME = "root"
+        PASSWORD = "password"
+        HOST = "127.0.0.1"
+        PORT = 3306
+        DATABASE = "test_schema"
 
-        if 'db' in config and (config['db']!=""):
-            db = config['db']
-        else:
-            logger.error("db not specified in config file.")
-            exit(1)
+        pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
 
-        if 'port' in config and (config['port']!=""):
-            port = config['port']
-        else:
-            logger.error("port not specified in config file.")
-            exit(1)
+        add_source(pool=pool, model=FLO2D_model, version=FLO2D_250_version, parameters=json.dumps(FLO2D_250_params))
+        add_source(pool=pool, model=FLO2D_model, version=FLO2D_150_version, parameters=json.dumps(FLO2D_150_params))
+        add_variable(pool=pool, variable=variable)
+        add_unit(pool=pool, unit=unit, unit_type=unit_type)
 
-        pool = get_Pool(host=host, port=port, user=user, password=password, db=db)
+        # add flo2d 250 output stations
 
-        init(pool=pool, model=model, wrf_model_list=wrf_model_list, version=version, variable=variable,
-                unit=unit, unit_type=unit_type)
+        channel_cell_map_250 = FLO2D_250_params.get('CHANNEL_CELL_MAP')
+
+        for channel_cell_map_250_key in channel_cell_map_250.keys():
+            add_station(pool=pool, name="{}_{}".format(FLO2D_250, channel_cell_map_250.get(channel_cell_map_250_key)),
+                    latitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][2],
+                    longitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][1],
+                    station_type=StationEnum.FLO2D_250, description=None)
+
+        flood_plain_cell_map_250 = FLO2D_250_params.get('FLOOD_PLAIN_CELL_MAP')
+
+        for flood_plain_cell_map_250_key in flood_plain_cell_map_250.keys():
+            add_station(pool=pool, name="{}_{}".format(FLO2D_250, flood_plain_cell_map_250.get(flood_plain_cell_map_250_key)),
+                    latitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][2],
+                    longitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][1],
+                    station_type=StationEnum.FLO2D_250, description=None)
+
+        # add flo2d 150 output stations
+
+        channel_cell_map_150 = FLO2D_150_params.get('CHANNEL_CELL_MAP')
+
+        for channel_cell_map_150_key in channel_cell_map_150.keys():
+            add_station(pool=pool, name="{}_{}".format(FLO2D_150, channel_cell_map_150.get(channel_cell_map_150_key)),
+                    latitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][2],
+                    longitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][1],
+                    station_type=StationEnum.FLO2D_150, description=None)
+
+        flood_plain_cell_map_150 = FLO2D_150_params.get('FLOOD_PLAIN_CELL_MAP')
+
+        for flood_plain_cell_map_150_key in flood_plain_cell_map_150.keys():
+            add_station(pool=pool,
+                    name="{}_{}".format(FLO2D_150, flood_plain_cell_map_150.get(flood_plain_cell_map_150_key)),
+                    latitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][2],
+                    longitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][1],
+                    station_type=StationEnum.FLO2D_150, description=None)
+
+        destroy_Pool(pool=pool)
 
     except Exception:
         logger.info("Initialization process failed.")
         traceback.print_exc()
     finally:
-        pool.destroy()
         logger.info("Initialization process finished.")
