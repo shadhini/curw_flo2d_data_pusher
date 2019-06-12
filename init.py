@@ -55,8 +55,8 @@ if __name__=="__main__":
 
         pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
 
-        add_source(pool=pool, model=FLO2D_model, version=FLO2D_250_version, parameters=json.dumps(FLO2D_250_params))
-        add_source(pool=pool, model=FLO2D_model, version=FLO2D_150_version, parameters=json.dumps(FLO2D_150_params))
+        add_source(pool=pool, model=FLO2D_model, version=FLO2D_250_version, parameters=FLO2D_250_params)
+        add_source(pool=pool, model=FLO2D_model, version=FLO2D_150_version, parameters=FLO2D_150_params)
         add_variable(pool=pool, variable=variable)
         add_unit(pool=pool, unit=unit, unit_type=unit_type)
 
@@ -68,7 +68,7 @@ if __name__=="__main__":
             add_station(pool=pool, name="{}_{}".format(FLO2D_250, channel_cell_map_250.get(channel_cell_map_250_key)),
                     latitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][2],
                     longitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][1],
-                    station_type=StationEnum.FLO2D_250, description=None)
+                    station_type=StationEnum.FLO2D_250, description="CHANNEL_CELL_MAP_ELEMENT_{}".format(channel_cell_map_250_key))
 
         flood_plain_cell_map_250 = FLO2D_250_params.get('FLOOD_PLAIN_CELL_MAP')
 
@@ -76,7 +76,7 @@ if __name__=="__main__":
             add_station(pool=pool, name="{}_{}".format(FLO2D_250, flood_plain_cell_map_250.get(flood_plain_cell_map_250_key)),
                     latitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][2],
                     longitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][1],
-                    station_type=StationEnum.FLO2D_250, description=None)
+                    station_type=StationEnum.FLO2D_250, description="FLOOD_PLAIN_CELL_MAP_ELEMENT_{}".format(flood_plain_cell_map_250_key))
 
         # add flo2d 150 output stations
 
@@ -86,7 +86,7 @@ if __name__=="__main__":
             add_station(pool=pool, name="{}_{}".format(FLO2D_150, channel_cell_map_150.get(channel_cell_map_150_key)),
                     latitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][2],
                     longitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][1],
-                    station_type=StationEnum.FLO2D_150, description=None)
+                    station_type=StationEnum.FLO2D_150, description="CHANNEL_CELL_MAP_ELEMENT_{}".format(channel_cell_map_150_key))
 
         flood_plain_cell_map_150 = FLO2D_150_params.get('FLOOD_PLAIN_CELL_MAP')
 
@@ -95,7 +95,7 @@ if __name__=="__main__":
                     name="{}_{}".format(FLO2D_150, flood_plain_cell_map_150.get(flood_plain_cell_map_150_key)),
                     latitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][2],
                     longitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][1],
-                    station_type=StationEnum.FLO2D_150, description=None)
+                    station_type=StationEnum.FLO2D_150, description="FLOOD_PLAIN_CELL_MAP_ELEMENT_{}".format(flood_plain_cell_map_150_key))
 
         destroy_Pool(pool=pool)
 
