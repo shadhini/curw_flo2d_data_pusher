@@ -88,7 +88,6 @@ if __name__=="__main__":
                     longitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][1],
                     station_type=StationEnum.FLO2D_150, description="{}_channel_cell_map_element".format(FLO2D_150))
 
-
         flood_plain_cell_map_150 = FLO2D_150_params.get('FLOOD_PLAIN_CELL_MAP')
 
         for flood_plain_cell_map_150_key in flood_plain_cell_map_150.keys():
