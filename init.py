@@ -41,19 +41,8 @@ if __name__=="__main__":
         flo2d_250_grids = read_csv('flo2d_250m.csv')
         flo2d_150_grids = read_csv('flo2d_150m.csv')
 
-        # pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD,
-        #         db=CURW_FCST_DATABASE)
-
-        #########
-        # test
-        ##########
-        USERNAME = "root"
-        PASSWORD = "password"
-        HOST = "127.0.0.1"
-        PORT = 3306
-        DATABASE = "test_schema"
-
-        pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
+        pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD,
+                db=CURW_FCST_DATABASE)
 
         add_source(pool=pool, model=FLO2D_model, version=FLO2D_250_version, parameters=FLO2D_250_params)
         add_source(pool=pool, model=FLO2D_model, version=FLO2D_150_version, parameters=FLO2D_150_params)
