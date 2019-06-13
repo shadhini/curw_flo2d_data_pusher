@@ -44,6 +44,18 @@ if __name__=="__main__":
         pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD,
                 db=CURW_FCST_DATABASE)
 
+        # ########
+        # # test
+        # ########
+        #
+        # USERNAME = "root"
+        # PASSWORD = "password"
+        # HOST = "127.0.0.1"
+        # PORT = 3306
+        # DATABASE = "test_schema"
+        #
+        # pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
+
         add_source(pool=pool, model=FLO2D_model, version=FLO2D_250_version, parameters=FLO2D_250_params)
         add_source(pool=pool, model=FLO2D_model, version=FLO2D_150_version, parameters=FLO2D_150_params)
         add_variable(pool=pool, variable=variable)
@@ -55,16 +67,16 @@ if __name__=="__main__":
 
         for channel_cell_map_250_key in channel_cell_map_250.keys():
             add_station(pool=pool, name="{}_{}".format(channel_cell_map_250_key, channel_cell_map_250.get(channel_cell_map_250_key)),
-                    latitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][2],
-                    longitude=flo2d_250_grids[int(channel_cell_map_250_key)-1][1],
+                    latitude="%.6f" % float(flo2d_250_grids[int(channel_cell_map_250_key)-1][2]),
+                    longitude="%.6f" % float(flo2d_250_grids[int(channel_cell_map_250_key)-1][1]),
                     station_type=StationEnum.FLO2D_250, description="{}_channel_cell_map_element".format(FLO2D_250))
 
         flood_plain_cell_map_250 = FLO2D_250_params.get('FLOOD_PLAIN_CELL_MAP')
 
         for flood_plain_cell_map_250_key in flood_plain_cell_map_250.keys():
             add_station(pool=pool, name="{}_{}".format(flood_plain_cell_map_250_key, flood_plain_cell_map_250.get(flood_plain_cell_map_250_key)),
-                    latitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][2],
-                    longitude=flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][1],
+                    latitude="%.6f" % float(flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][2]),
+                    longitude="%.6f" % float(flo2d_250_grids[int(flood_plain_cell_map_250_key)-1][1]),
                     station_type=StationEnum.FLO2D_250, description="{}_flood_plain_cell_map_element".format(FLO2D_250))
 
         # add flo2d 150 output stations
@@ -73,8 +85,8 @@ if __name__=="__main__":
 
         for channel_cell_map_150_key in channel_cell_map_150.keys():
             add_station(pool=pool, name="{}_{}".format(channel_cell_map_150_key, channel_cell_map_150.get(channel_cell_map_150_key)),
-                    latitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][2],
-                    longitude=flo2d_150_grids[int(channel_cell_map_150_key) - 1][1],
+                    latitude="%.6f" % float(flo2d_150_grids[int(channel_cell_map_150_key) - 1][2]),
+                    longitude="%.6f" % float(flo2d_150_grids[int(channel_cell_map_150_key) - 1][1]),
                     station_type=StationEnum.FLO2D_150, description="{}_channel_cell_map_element".format(FLO2D_150))
 
         flood_plain_cell_map_150 = FLO2D_150_params.get('FLOOD_PLAIN_CELL_MAP')
@@ -82,8 +94,8 @@ if __name__=="__main__":
         for flood_plain_cell_map_150_key in flood_plain_cell_map_150.keys():
             add_station(pool=pool,
                     name="{}_{}".format(flood_plain_cell_map_150_key, flood_plain_cell_map_150.get(flood_plain_cell_map_150_key)),
-                    latitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][2],
-                    longitude=flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][1],
+                    latitude="%.6f" % float(flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][2]),
+                    longitude="%.6f" % float(flo2d_150_grids[int(flood_plain_cell_map_150_key) - 1][1]),
                     station_type=StationEnum.FLO2D_150, description="{}_flood_plain_cell_map_element".format(FLO2D_150))
 
         destroy_Pool(pool=pool)
