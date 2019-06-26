@@ -8,11 +8,16 @@ import re
 import csv
 
 from db_adapter.logger import logger
-from db_adapter.constants import COMMON_DATE_TIME_FORMAT
+from db_adapter.constants import COMMON_DATE_TIME_FORMAT, CURW_FCST_DATABASE, CURW_FCST_PASSWORD, CURW_FCST_USERNAME, \
+    CURW_FCST_PORT, CURW_FCST_HOST
 from db_adapter.base import get_Pool
-from db_adapter.curw_fcst.source import get_source_id
+from db_adapter.curw_fcst.source import get_source_id, get_source_parameters
 from db_adapter.curw_fcst.variable import get_variable_id
 from db_adapter.curw_fcst.unit import get_unit_id, UnitType
+from db_adapter.curw_fcst.station import get_flo2d_output_stations, StationEnum
+from db_adapter.curw_fcst.timeseries import Timeseries
+
+flo2d_stations = {}
 
 
 def read_attribute_from_config_file(attribute, config, compulsory):
@@ -111,18 +116,28 @@ def extractForecastTimeseries(timeseries, extract_date, extract_time, by_day=Fal
         if tt_date_time >= extract_date_time:
             new_timeseries = timeseries[i:]
             break
+
     return new_timeseries
 
 
-def save_forecast_timeseries(pool, timeseries, model_date, model_time, opts):
+def save_forecast_timeseries(pool, timeseries, run_date, run_time, opts):
     print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', opts)
 
+    # {
+    #         'tms_id'     : '',
+    #         'sim_tag'    : '',
+    #         'station_id' : '',
+    #         'source_id'  : '',
+    #         'unit_id'    : '',
+    #         'variable_id': ''
+    #         }
+
     # Convert date time with offset
-    date_time = datetime.strptime('%s %s' % (model_date, model_time), COMMON_DATE_TIME_FORMAT)
+    date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT)
     if 'utcOffset' in opts:
         date_time = date_time + opts['utcOffset']
-        model_date = date_time.strftime('%Y-%m-%d')
-        model_time = date_time.strftime('%H:%M:%S')
+        run_date = date_time.strftime('%Y-%m-%d')
+        run_time = date_time.strftime('%H:%M:%S')
 
     # If there is an offset, shift by offset before proceed
     forecast_timeseries = []
@@ -132,76 +147,28 @@ def save_forecast_timeseries(pool, timeseries, model_date, model_time, opts):
             forecast_timeseries.append(
                 [datetime.strptime(item[0], COMMON_DATE_TIME_FORMAT) + opts['utcOffset'], item[1]])
 
-        forecast_timeseries = extractForecastTimeseries(forecast_timeseries, model_date, model_time, by_day=True)
+        forecast_timeseries = extractForecastTimeseries(timeseries=forecast_timeseries, extract_date=run_date, extract_time=run_time)
     else:
-        forecast_timeseries = extractForecastTimeseries(timeseries, model_date, model_time, by_day=True)
+        forecast_timeseries = extractForecastTimeseries(timeseries=timeseries, extract_date=run_date, extract_time=run_time)
 
-    # Check whether existing station
-    force_insert = opts.get('forceInsert', False)
-    station = opts.get('station', '')
-    source = opts.get('source', 'FLO2D')
-    is_station_exists = adapter.get_station({'name': station})
-    if is_station_exists is None:
-        print('WARNING: Station %s does not exists. Continue with others.' % station)
-        return
-    # TODO: Create if station does not exists.
+    elementNo = opts.get('elementNo')
 
-    run_name = opts.get('run_name', 'Cloud-1')
-    less_char_index = run_name.find('<')
-    greater_char_index = run_name.find('>')
-    if -1 < less_char_index > -1 < greater_char_index:
-        start_str = run_name[:less_char_index]
-        date_format_str = run_name[less_char_index + 1:greater_char_index]
-        end_str = run_name[greater_char_index + 1:]
-        try:
-            date_str = date_time.strftime(date_format_str)
-            run_name = start_str + date_str + end_str
-        except ValueError:
-            raise ValueError("Incorrect data format " + date_format_str)
+    tms_meta = opts.get('tms_meta')
 
-    types = [
-        'Forecast-0-d',
-        'Forecast-1-d-after',
-        'Forecast-2-d-after',
-        'Forecast-3-d-after',
-        'Forecast-4-d-after',
-        'Forecast-5-d-after',
-        'Forecast-6-d-after',
-        'Forecast-7-d-after',
-        'Forecast-8-d-after',
-        'Forecast-9-d-after',
-        'Forecast-10-d-after',
-        'Forecast-11-d-after',
-        'Forecast-12-d-after',
-        'Forecast-13-d-after',
-        'Forecast-14-d-after'
-    ]
-    meta_data = {
-        'station': station,
-        'variable': 'WaterLevel',
-        'unit': 'm',
-        'type': types[0],
-        'source': source,
-        'name': run_name
-    }
-    for i in range(0, min(len(types), len(extracted_timeseries))):
-        meta_data_copy = copy.deepcopy(meta_data)
-        meta_data_copy['type'] = types[i]
-        event_id = pool.get_event_id(meta_data_copy)
-        if event_id is None:
-            event_id = pool.create_event_id(meta_data_copy)
-            print('HASH SHA256 created: ', event_id)
-        else:
-            print('HASH SHA256 exists: ', event_id)
-            if not force_insert:
-                print('Timeseries already exists. User --force to update the existing.\n')
-                continue
+    tms_meta['latitude'] = flo2d_stations.get(elementNo)[1]
+    tms_meta['longitude'] = flo2d_stations.get(elementNo)[2]
+    tms_meta['station_id'] = flo2d_stations.get(elementNo)[0]
 
-        # for l in timeseries[:3] + timeseries[-2:] :
-        #     print(l)
-        row_count = pool.insert_timeseries(event_id, extracted_timeseries[i], force_insert)
-        print('%s rows inserted.\n' % row_count)
-        # -- END OF SAVE_FORECAST_TIMESERIES
+    TS = Timeseries(pool=pool)
+
+    tms_id = TS.get_timeseries_id_if_exists(meta_data=tms_meta)
+
+    if tms_id is None:
+        tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
+        tms_meta['tms_id'] = tms_id
+        TS.insert_run(run_meta=tms_meta)
+
+    TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
 
 
 if __name__=="__main__":
@@ -210,58 +177,44 @@ if __name__=="__main__":
     Config.json 
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
-      "TIMEDEP_FILE": "TIMDEP.OUT",
-      "WATER_LEVEL_FILE": "water_level.txt",
-      "WATER_LEVEL_DIR": "water_level",
-      "OUTPUT_DIR": "OUTPUT",
-      "RUN_FLO2D_FILE": "RUN_FLO2D.json",
-      "UTC_OFFSET": ",+00:00:00",
-      "FLO2D_MODEL": "FLO2D",
-      
+      "TIMDEP_FILE": "TIMDEP.OUT",
+      "output_dir": "",
+    
+      "run_date": "2019-05-24",
+      "run_time": "",
+      "ts_start_date": "",
+      "ts_start_time": "",
+      "utc_offset": "",
+    
+      "sim_tag": "",
+    
       "model": "WRF",
       "version": "v3",
-      
+    
       "unit": "mm",
       "unit_type": "Accumulative",
-      
-      "variable": "Precipitation",
-      
-      "host": "127.0.0.1",
-      "user": "root",
-      "password": "password",
-      "db": "curw_fcst",
-      "port": 3306
+    
+      "variable": "Precipitation"
     }
 
     """
     try:
 
-        # current working directory
-        CWD = os.getcwd()
-
         config = json.loads(open('config.json').read())
 
         # flo2D related details
         HYCHAN_OUT_FILE = read_attribute_from_config_file('HYCHAN_OUT_FILE', config, True)
-        TIMEDEP_FILE = read_attribute_from_config_file('TIMEDEP_FILE', config, True)
-        WATER_LEVEL_FILE = read_attribute_from_config_file('WATER_LEVEL_FILE', config, True)
-        WATER_LEVEL_DIR = read_attribute_from_config_file('WATER_LEVEL_DIR', config, True)
-        OUTPUT_DIR = read_attribute_from_config_file('OUTPUT_DIR', config, True)
-        RUN_FLO2D_FILE = read_attribute_from_config_file('RUN_FLO2D_FILE', config, True)
-        UTC_OFFSET = read_attribute_from_config_file('UTC_OFFSET', config, True)
-        FLO2D_MODEL = read_attribute_from_config_file('FLO2D_MODEL', config, True)
+        TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
+        output_dir = read_attribute_from_config_file('output_dir', config, True)
 
-        date = read_attribute_from_config_file('date', config, False)
-        time = read_attribute_from_config_file('time', config, False)
-        path = read_attribute_from_config_file('path', config, False)
-        output_suffix = read_attribute_from_config_file('output_suffix', config, False)
-        start_date = read_attribute_from_config_file('start_date', config, False)
-        start_time = read_attribute_from_config_file('start_time', config, False)
-        flo2d_config = read_attribute_from_config_file('flo2d_config', config, False)
-        run_name_default = read_attribute_from_config_file('run_name_default', config, False)
-        runName = read_attribute_from_config_file('runName', config, False)
-        utc_offset = read_attribute_from_config_file('utc_offset', config, False)
-        forceInsert = read_attribute_from_config_file('forceInsert', config, False)
+        run_date = read_attribute_from_config_file('run_date', config, True)
+        run_time = read_attribute_from_config_file('run_time', config, True)
+        ts_start_date = read_attribute_from_config_file('ts_start_date', config, True)
+        ts_start_time = read_attribute_from_config_file('ts_start_time', config, True)
+        utc_offset = read_attribute_from_config_file('utc_offset', config, True)
+
+        # sim tag
+        sim_tag = read_attribute_from_config_file('sim_tag', config, True)
 
         # source details
         model = read_attribute_from_config_file('model', config, True)
@@ -274,7 +227,33 @@ if __name__=="__main__":
         # variable details
         variable = read_attribute_from_config_file('variable', config, True)
 
-        flo2d_source = {"CHANNEL_CELL_MAP": {"179": "Wellawatta Canal-St Peters College", "220": "Dehiwala Canal", "261": "Mutwal Outfall", "387": "Swarna Rd-Wellawatta", "388": "Thummodara", "475": "Babapulle", "545": "Ingurukade Jn", "592": "Torrinton", "616": "Nagalagam Street", "618": "Nagalagam Street River", "660": "OUSL-Narahenpita Rd", "684": "Dematagoda Canal-Orugodawatta", "813": "Kirimandala Mw", "823": "LesliRanagala Mw", "885": "OUSL-Nawala Kirulapana Canal", "912": "Kittampahuwa", "973": "Near SLLRDC", "991": "Kalupalama", "1062": "Yakbedda", "1161": "Kittampahuwa River", "1243": "Vivekarama Mw", "1333": "Wellampitiya", "1420": "Madinnagoda", "1517": "Kotte North Canal", "1528": "Harwad Band", "1625": "Kotiyagoda", "1959": "Koratuwa Rd", "2174": "Weliwala Pond", "2371": "JanakalaKendraya", "2395": "Kelani Mulla Outfall", "2396": "Salalihini-River", "2597": "Old Awissawella Rd", "2693": "Talatel Culvert", "2695": "Wennawatta", "3580": "Ambatale Outfull1", "3673": "Ambatale River", "3919": "Amaragoda", "4192": "Malabe"}, "FLOOD_PLAIN_CELL_MAP": {"24": "Baira Lake Nawam Mw", "153": "Baira Lake Railway", "1838": "Polduwa-Parlimant Rd", "1842": "Abagaha Jn", "2669": "Parlimant Lake Side", "2686": "Aggona", "2866": "Kibulawala 1", "2874": "Rampalawatta"}}
+        hychan_out_file_path = os.path.join(output_dir, HYCHAN_OUT_FILE)
+        timdep_file_path = os.path.join(output_dir, TIMDEP_FILE)
+
+        pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, db=CURW_FCST_DATABASE, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD)
+
+        flo2d_model_name = '{}_{}'.format(model, version)
+
+        flo2d_source = get_source_parameters(pool=pool, model=model, version=version)
+        flo2d_stations = get_flo2d_output_stations(pool=pool, flo2d_model=StationEnum.getType(flo2d_model_name))
+
+        source_id = get_source_id(pool=pool, model=model, version=version)
+
+        variable_id = get_variable_id(pool=pool, variable=variable)
+
+        unit_id = get_unit_id(pool=pool, unit=unit, unit_type=unit_type)
+
+        tms_meta = {
+                'sim_tag'  : sim_tag,
+                'model'    : model,
+                'version'  : version,
+                'variable' : variable,
+                'unit'     : unit,
+                'unit_type': unit_type.value,
+                'source_id': source_id,
+                'variable_id': variable_id,
+                'unit_id'   : unit_id
+                }
 
         CHANNEL_CELL_MAP = flo2d_source['CHANNEL_CELL_MAP']
 
@@ -285,105 +264,20 @@ if __name__=="__main__":
         SERIES_LENGTH = 0
         MISSING_VALUE = -999
 
-        # FLO2D run directory
-        if path:
-            appDir = path_join(CWD, path)
-        else:
-            appDir = path_join(CWD, date + '_Kelani')
+        utcOffset = getUTCOffset(utc_offset, default=True)
 
-        # Load FLO2D Configuration file for the Model run if available
-        if flo2d_config:
-            FLO2D_CONFIG_FILE = path_join(CWD, flo2d_config)
-        else:
-            FLO2D_CONFIG_FILE = path_join(appDir, RUN_FLO2D_FILE)
-
-        # Check FLO2D Config file exists
-        if os.path.exists(FLO2D_CONFIG_FILE):
-            FLO2D_CONFIG = json.loads(open(FLO2D_CONFIG_FILE).read())
-        else:
-            FLO2D_CONFIG = json.loads('{}')
-
-        if date:
-            now = datetime.strptime(date, '%Y-%m-%d')
-        elif 'MODEL_STATE_DATE' in FLO2D_CONFIG and len(FLO2D_CONFIG['MODEL_STATE_DATE']):
-            # Use FLO2D Config file data, if available
-            now = datetime.strptime(FLO2D_CONFIG['MODEL_STATE_DATE'], '%Y-%m-%d')
-        else:
-            # Default run for current day
-            now = datetime.now()
-
-        date = now.strftime("%Y-%m-%d")
-
-        if time:
-            now = datetime.strptime('%s %s' % (date, time), '%Y-%m-%d %H:%M:%S')
-        elif 'MODEL_STATE_TIME' in FLO2D_CONFIG and len(FLO2D_CONFIG['MODEL_STATE_TIME']):
-            # Use FLO2D Config file data, if available
-            now = datetime.strptime('%s %s' % (date, FLO2D_CONFIG['MODEL_STATE_TIME']), '%Y-%m-%d %H:%M:%S')
-
-        time = now.strftime("%H:%M:%S")
-
-        if start_date:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d')
-            start_date = start_date.strftime("%Y-%m-%d")
-        elif 'TIMESERIES_START_DATE' in FLO2D_CONFIG and len(FLO2D_CONFIG['TIMESERIES_START_DATE']):
-            # Use FLO2D Config file data, if available
-            start_date = datetime.strptime(FLO2D_CONFIG['TIMESERIES_START_DATE'], '%Y-%m-%d')
-            start_date = start_date.strftime("%Y-%m-%d")
-        else:
-            start_date = date
-
-        if start_time:
-            start_time = datetime.strptime('%s %s' % (start_date, start_time), '%Y-%m-%d %H:%M:%S')
-            start_time = start_time.strftime("%H:%M:%S")
-        elif 'TIMESERIES_START_TIME' in FLO2D_CONFIG and len(FLO2D_CONFIG['TIMESERIES_START_TIME']):
-            # Use FLO2D Config file data, if available
-            start_time = datetime.strptime('%s %s' % (start_date, FLO2D_CONFIG['TIMESERIES_START_TIME']),
-                    '%Y-%m-%d %H:%M:%S')
-            start_time = start_time.strftime("%H:%M:%S")
-        else:
-            start_time = datetime.strptime(start_date, '%Y-%m-%d')  # Time is set to 00:00:00
-            start_time = start_time.strftime("%H:%M:%S")
-
-        # Run Name of DB
-        if 'RUN_NAME' in FLO2D_CONFIG and len(FLO2D_CONFIG['RUN_NAME']):  # Use FLO2D Config file data, if available
-            runName = FLO2D_CONFIG['RUN_NAME']
-        if not runName:
-            runName = run_name_default
-
-        # UTC Offset
-        if 'UTC_OFFSET' in FLO2D_CONFIG and len(FLO2D_CONFIG['UTC_OFFSET']):  # Use FLO2D Config file data, if available
-            UTC_OFFSET = FLO2D_CONFIG['UTC_OFFSET']
-        if utc_offset:
-            UTC_OFFSET = utc_offset
-
-        utcOffset = getUTCOffset(UTC_OFFSET, default=True)
-
-        print('Extract Water Level Result of FLO2D on', date, '@', time, 'with Base time of', start_date, '@', start_time)
-        print('With UTC Offset of ', str(utcOffset), ' <= ', UTC_OFFSET)
-
-        OUTPUT_DIR_PATH = path_join(CWD, OUTPUT_DIR)
-        HYCHAN_OUT_FILE_PATH = path_join(appDir, HYCHAN_OUT_FILE)
-
-        if output_suffix:
-            WATER_LEVEL_DIR_PATH = path_join(OUTPUT_DIR_PATH, "%s-%s" % (WATER_LEVEL_DIR, output_suffix))
-        elif 'FLO2D_OUTPUT_SUFFIX' in FLO2D_CONFIG and len(FLO2D_CONFIG['FLO2D_OUTPUT_SUFFIX']):
-            # Use FLO2D Config file data, if available
-            WATER_LEVEL_DIR_PATH = path_join(OUTPUT_DIR_PATH, "%s-%s" % (WATER_LEVEL_DIR, FLO2D_CONFIG['FLO2D_OUTPUT_SUFFIX']))
-        else:
-            WATER_LEVEL_DIR_PATH = path_join(OUTPUT_DIR_PATH, "%s-%s" % (WATER_LEVEL_DIR, date))
-
-        print('Processing FLO2D model on', appDir)
+        print('Extract Water Level Result of FLO2D on', run_date, '@', run_time, 'with Base time of', ts_start_date, '@', ts_start_time)
 
         # Check HYCHAN.OUT file exists
-        if not os.path.exists(HYCHAN_OUT_FILE_PATH):
-            print('Unable to find file : ', HYCHAN_OUT_FILE_PATH)
+        if not os.path.exists(hychan_out_file_path):
+            print('Unable to find file : ', hychan_out_file_path)
             sys.exit()
 
         #####################################
         # Calculate the size of time series #
         #####################################
         bufsize = 65536
-        with open(HYCHAN_OUT_FILE_PATH) as infile:
+        with open(hychan_out_file_path) as infile:
             isWaterLevelLines = False
             isCounting = False
             countSeriesSize = 0  # HACK: When it comes to the end of file, unable to detect end of time series
@@ -408,9 +302,9 @@ if __name__=="__main__":
         #################################################################
         # Extract Channel Water Level elevations from HYCHAN.OUT file   #
         #################################################################
-        print('Extract Channel Water Level Result of FLO2D HYCHAN.OUT on', date, '@', time, 'with Base time of',
-                start_date, '@', start_time)
-        with open(HYCHAN_OUT_FILE_PATH) as infile:
+        print('Extract Channel Water Level Result of FLO2D (HYCHAN.OUT) on', run_date, '@', run_time, 'with Base time of',
+                ts_start_date, '@', ts_start_time)
+        with open(hychan_out_file_path) as infile:
             isWaterLevelLines = False
             isSeriesComplete = False
             waterLevelLines = []
@@ -440,7 +334,7 @@ if __name__=="__main__":
                                 isSeriesComplete = True
 
                     if isSeriesComplete:
-                        baseTime = datetime.strptime('%s %s' % (start_date, start_time), '%Y-%m-%d %H:%M:%S')
+                        baseTime = datetime.strptime('%s %s' % (ts_start_date, ts_start_time), '%Y-%m-%d %H:%M:%S')
                         timeseries = []
                         elementNo = waterLevelLines[0].split()[5]
                         # print('Extracted Cell No', elementNo, CHANNEL_CELL_MAP[elementNo])
@@ -464,16 +358,16 @@ if __name__=="__main__":
 
                         # Save Forecast values into Database
                         opts = {
-                                'forceInsert': forceInsert,
-                                'station'    : CHANNEL_CELL_MAP[elementNo],
-                                'run_name'   : runName
+                                'elementNo'    : elementNo,
+                                'tms_meta'   : tms_meta
                                 }
                         # print('>>>>>', opts)
                         if utcOffset!=timedelta():
                             opts['utcOffset'] = utcOffset
 
                         # Push timeseries to database
-                        save_forecast_timeseries(adapter, timeseries, date, time, opts)
+                        save_forecast_timeseries(pool=pool, timeseries=timeseries,
+                                run_date=run_date, run_time=run_time, opts=opts)
 
                         isWaterLevelLines = False
                         isSeriesComplete = False
@@ -484,17 +378,15 @@ if __name__=="__main__":
         #################################################################
         # Extract Flood Plain water elevations from TIMEDEP.OUT file    #
         #################################################################
-        TIMEDEP_FILE_PATH = path_join(appDir, TIMEDEP_FILE)
 
-        if not os.path.exists(TIMEDEP_FILE_PATH):
-            print('Unable to find file : ', TIMEDEP_FILE_PATH)
+        if not os.path.exists(timdep_file_path):
+            print('Unable to find file : ', timdep_file_path)
             sys.exit()
 
-        print('TIMEDEP_FILE_PATH : ', TIMEDEP_FILE_PATH)
-        print('Extract Flood Plain Water Level Result of FLO2D on', date, '@', time, 'with Base time of', start_date,
-                '@', start_time)
+        print('Extract Flood Plain Water Level Result of FLO2D (TIMEDEP.OUT) on', run_date, '@', run_time, 'with Base time of', ts_start_date,
+                '@', ts_start_time)
 
-        with open(TIMEDEP_FILE_PATH) as infile:
+        with open(timdep_file_path) as infile:
             waterLevelLines = []
             waterLevelSeriesDict = dict.fromkeys(FLOOD_ELEMENT_NUMBERS, [])
             while True:
@@ -510,7 +402,7 @@ if __name__=="__main__":
                             # Get Time stamp Ref:http://stackoverflow.com/a/13685221/1461060
                             # print('waterLevelLines[0].split() : ', waterLevelLines[0].split())
                             ModelTime = float(waterLevelLines[0].split()[0])
-                            baseTime = datetime.strptime('%s %s' % (start_date, start_time), '%Y-%m-%d %H:%M:%S')
+                            baseTime = datetime.strptime('%s %s' % (ts_start_date, ts_start_time), '%Y-%m-%d %H:%M:%S')
                             currentStepTime = baseTime + timedelta(hours=ModelTime)
                             dateAndTime = currentStepTime.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -533,16 +425,15 @@ if __name__=="__main__":
 
                 # Save Forecast values into Database
                 opts = {
-                        'forceInsert': forceInsert,
-                        'station'    : FLOOD_PLAIN_CELL_MAP[elementNo],
-                        'run_name'   : runName,
-                        'source'     : FLO2D_MODEL
+                        'elementNo'    : elementNo,
+                        'tms_meta'   : tms_meta
                         }
                 if utcOffset!=timedelta():
                     opts['utcOffset'] = utcOffset
 
                 # Push timeseries to database
-                save_forecast_timeseries(adapter, waterLevelSeriesDict[elementNo], date, time, opts)
+                save_forecast_timeseries(pool=pool,timeseries=waterLevelSeriesDict[elementNo],
+                        run_date=run_date, run_time=run_time, opts=opts)
 
     except Exception as e:
         logger.error('JSON config data loading error.')
