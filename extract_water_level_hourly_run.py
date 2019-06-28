@@ -17,7 +17,13 @@ from db_adapter.curw_fcst.unit import get_unit_id, UnitType
 from db_adapter.curw_fcst.station import get_flo2d_output_stations, StationEnum
 from db_adapter.curw_fcst.timeseries import Timeseries
 
-flo2d_stations = {}
+flo2d_stations = { }
+
+USERNAME = "root"
+PASSWORD = "password"
+HOST = "127.0.0.1"
+PORT = 3306
+DATABASE = "curw_fcst"
 
 
 def read_attribute_from_config_file(attribute, config, compulsory):
@@ -157,20 +163,26 @@ def save_forecast_timeseries(pool, timeseries, run_date, run_time, opts):
 
     tms_meta = opts.get('tms_meta')
 
-    tms_meta['latitude'] = flo2d_stations.get(elementNo)[1]
-    tms_meta['longitude'] = flo2d_stations.get(elementNo)[2]
+    tms_meta['latitude'] = str(flo2d_stations.get(elementNo)[1])
+    tms_meta['longitude'] = str(flo2d_stations.get(elementNo)[2])
     tms_meta['station_id'] = flo2d_stations.get(elementNo)[0]
 
-    TS = Timeseries(pool=pool)
+    try:
 
-    tms_id = TS.get_timeseries_id_if_exists(meta_data=tms_meta)
+        TS = Timeseries(pool=pool)
 
-    if tms_id is None:
-        tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
-        tms_meta['tms_id'] = tms_id
-        TS.insert_run(run_meta=tms_meta)
+        tms_id = TS.get_timeseries_id_if_exists(meta_data=tms_meta)
 
-    TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
+        if tms_id is None:
+            tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
+            tms_meta['tms_id'] = tms_id
+            TS.insert_run(run_meta=tms_meta)
+
+        TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
+
+    except Exception:
+        logger.error("Exception occurred while pushing data to the curw_fcst database")
+        traceback.print_exc()
 
 
 def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, run_time):
@@ -213,7 +225,9 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         run_time = run_time
         ts_start_date = ts_start_date
         ts_start_time = ts_start_time
-        utc_offset = read_attribute_from_config_file('utc_offset', config, True)
+        utc_offset = read_attribute_from_config_file('utc_offset', config, False)
+        if utc_offset is None:
+            utc_offset = ''
 
         # sim tag
         sim_tag = read_attribute_from_config_file('sim_tag', config, True)
@@ -232,12 +246,13 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         hychan_out_file_path = os.path.join(output_dir, HYCHAN_OUT_FILE)
         timdep_file_path = os.path.join(output_dir, TIMDEP_FILE)
 
-        pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, db=CURW_FCST_DATABASE, user=CURW_FCST_USERNAME,
-                password=CURW_FCST_PASSWORD)
+        # pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, db=CURW_FCST_DATABASE, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD)
+
+        pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
 
         flo2d_model_name = '{}_{}'.format(model, version)
 
-        flo2d_source = get_source_parameters(pool=pool, model=model, version=version)
+        flo2d_source = json.loads(get_source_parameters(pool=pool, model=model, version=version))
         flo2d_stations = get_flo2d_output_stations(pool=pool, flo2d_model=StationEnum.getType(flo2d_model_name))
 
         source_id = get_source_id(pool=pool, model=model, version=version)
@@ -258,9 +273,9 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
                 'unit_id'    : unit_id
                 }
 
-        CHANNEL_CELL_MAP = flo2d_source['CHANNEL_CELL_MAP']
+        CHANNEL_CELL_MAP = flo2d_source["CHANNEL_CELL_MAP"]
 
-        FLOOD_PLAIN_CELL_MAP = flo2d_source['FLOOD_PLAIN_CELL_MAP']
+        FLOOD_PLAIN_CELL_MAP = flo2d_source["FLOOD_PLAIN_CELL_MAP"]
 
         ELEMENT_NUMBERS = CHANNEL_CELL_MAP.keys()
         FLOOD_ELEMENT_NUMBERS = FLOOD_PLAIN_CELL_MAP.keys()
