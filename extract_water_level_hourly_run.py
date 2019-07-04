@@ -2,10 +2,8 @@ import json
 import traceback
 import sys
 import os
-from os.path import join as path_join
 from datetime import datetime, timedelta
 import re
-import csv
 
 from db_adapter.logger import logger
 from db_adapter.constants import COMMON_DATE_TIME_FORMAT, CURW_FCST_DATABASE, CURW_FCST_PASSWORD, CURW_FCST_USERNAME, \
@@ -19,11 +17,11 @@ from db_adapter.curw_fcst.timeseries import Timeseries
 
 flo2d_stations = { }
 
-USERNAME = "root"
-PASSWORD = "password"
-HOST = "127.0.0.1"
-PORT = 3306
-DATABASE = "curw_fcst"
+USERNAME = CURW_FCST_USERNAME
+PASSWORD = CURW_FCST_PASSWORD
+HOST = CURW_FCST_HOST
+PORT = CURW_FCST_PORT
+DATABASE = "test_schema"
 
 
 def read_attribute_from_config_file(attribute, config, compulsory):
