@@ -126,7 +126,7 @@ def extractForecastTimeseries(timeseries, extract_date, extract_time, by_day=Fal
     return new_timeseries
 
 
-def save_forecast_timeseries(pool, timeseries, run_date, run_time, opts):
+def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts):
     print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', opts)
 
     # {
@@ -175,8 +175,10 @@ def save_forecast_timeseries(pool, timeseries, run_date, run_time, opts):
             tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
             tms_meta['tms_id'] = tms_id
             TS.insert_run(run_meta=tms_meta)
+            TS.update_start_date(id_=tms_id, start_date=('%s %s' % (run_date, run_time)))
 
         TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
+        TS.update_latest_fgt(id_=tms_id, fgt=('%s %s' % (run_date, run_time)))
 
     except Exception:
         logger.error("Exception occurred while pushing data to the curw_fcst database")
@@ -382,7 +384,7 @@ if __name__=="__main__":
                             opts['utcOffset'] = utcOffset
 
                         # Push timeseries to database
-                        save_forecast_timeseries(pool=pool, timeseries=timeseries,
+                        save_forecast_timeseries_to_db(pool=pool, timeseries=timeseries,
                                 run_date=run_date, run_time=run_time, opts=opts)
 
                         isWaterLevelLines = False
@@ -448,7 +450,7 @@ if __name__=="__main__":
                     opts['utcOffset'] = utcOffset
 
                 # Push timeseries to database
-                save_forecast_timeseries(pool=pool, timeseries=waterLevelSeriesDict[elementNo],
+                save_forecast_timeseries_to_db(pool=pool, timeseries=waterLevelSeriesDict[elementNo],
                         run_date=run_date, run_time=run_time, opts=opts)
 
     except Exception as e:
