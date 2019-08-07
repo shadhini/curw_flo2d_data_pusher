@@ -136,17 +136,12 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
     #         'variable_id': ''
     #         }
 
-    # Convert date time (fgt) to local time
-    date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT) + timedelta(hours=5, minutes=30)
-    run_date = date_time.strftime('%Y-%m-%d')
-    run_time = date_time.strftime('%H:%M:%S')
-
-    # # Convert date time with offset
-    # date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT)
-    # if 'utcOffset' in opts:
-    #     date_time = date_time + opts['utcOffset']
-    #     run_date = date_time.strftime('%Y-%m-%d')
-    #     run_time = date_time.strftime('%H:%M:%S')
+    # Convert date time with offset
+    date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT)
+    if 'utcOffset' in opts:
+        date_time = date_time + opts['utcOffset']
+        run_date = date_time.strftime('%Y-%m-%d')
+        run_time = date_time.strftime('%H:%M:%S')
 
     # If there is an offset, shift by offset before proceed
     forecast_timeseries = []
