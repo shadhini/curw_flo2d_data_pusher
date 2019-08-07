@@ -62,10 +62,10 @@ def getUTCOffset(utcOffset, default=False):
         else:
             return False
 
-    if utcOffset[0]=="-":  # If timestamp in negtive zone, add it to current time
+    if utcOffset[0]=="+":  # If timestamp in positive zone, add it to current time
         offset_str = utcOffset[1:].split(':')
         return timedelta(hours=int(offset_str[0]), minutes=int(offset_str[1]))
-    if utcOffset[0]=="+":  # If timestamp in positive zone, deduct it to current time
+    if utcOffset[0]=="-":  # If timestamp in negative zone, deduct it from current time
         offset_str = utcOffset[1:].split(':')
         return timedelta(hours=-1 * int(offset_str[0]), minutes=-1 * int(offset_str[1]))
 
@@ -124,7 +124,7 @@ def extractForecastTimeseries(timeseries, extract_date, extract_time, by_day=Fal
     return new_timeseries
 
 
-def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts):
+def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, flo2d_stations):
     print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', opts)
 
     # {
@@ -136,12 +136,17 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts):
     #         'variable_id': ''
     #         }
 
-    # Convert date time with offset
-    date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT)
-    if 'utcOffset' in opts:
-        date_time = date_time + opts['utcOffset']
-        run_date = date_time.strftime('%Y-%m-%d')
-        run_time = date_time.strftime('%H:%M:%S')
+    # Convert date time (fgt) to local time
+    date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT) + timedelta(hours=5, minutes=30)
+    run_date = date_time.strftime('%Y-%m-%d')
+    run_time = date_time.strftime('%H:%M:%S')
+
+    # # Convert date time with offset
+    # date_time = datetime.strptime('%s %s' % (run_date, run_time), COMMON_DATE_TIME_FORMAT)
+    # if 'utcOffset' in opts:
+    #     date_time = date_time + opts['utcOffset']
+    #     run_date = date_time.strftime('%Y-%m-%d')
+    #     run_time = date_time.strftime('%H:%M:%S')
 
     # If there is an offset, shift by offset before proceed
     forecast_timeseries = []
@@ -160,6 +165,8 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts):
     elementNo = opts.get('elementNo')
 
     tms_meta = opts.get('tms_meta')
+
+    print("############### 2nd occurrence ############", flo2d_stations)
 
     tms_meta['latitude'] = str(flo2d_stations.get(elementNo)[1])
     tms_meta['longitude'] = str(flo2d_stations.get(elementNo)[2])
@@ -255,6 +262,8 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         flo2d_source = json.loads(get_source_parameters(pool=pool, model=model, version=version))
         flo2d_stations = get_flo2d_output_stations(pool=pool, flo2d_model=StationEnum.getType(flo2d_model_name))
 
+        print("############### 1st occurrence ############", flo2d_stations)
+
         source_id = get_source_id(pool=pool, model=model, version=version)
 
         variable_id = get_variable_id(pool=pool, variable=variable)
@@ -290,7 +299,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         # Check HYCHAN.OUT file exists
         if not os.path.exists(hychan_out_file_path):
             print('Unable to find file : ', hychan_out_file_path)
-            sys.exit()
+            traceback.print_exc()
 
         #####################################
         # Calculate the size of time series #
@@ -387,7 +396,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
                         # Push timeseries to database
                         save_forecast_timeseries_to_db(pool=pool, timeseries=timeseries,
-                                run_date=run_date, run_time=run_time, opts=opts)
+                                run_date=run_date, run_time=run_time, opts=opts, flo2d_stations=flo2d_stations)
 
                         isWaterLevelLines = False
                         isSeriesComplete = False
@@ -401,7 +410,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
         if not os.path.exists(timdep_file_path):
             print('Unable to find file : ', timdep_file_path)
-            sys.exit()
+            traceback.print_exc()
 
         print('Extract Flood Plain Water Level Result of FLO2D (TIMEDEP.OUT) on', run_date, '@', run_time,
                 'with Base time of', ts_start_date,
@@ -454,7 +463,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
                 # Push timeseries to database
                 save_forecast_timeseries_to_db(pool=pool, timeseries=waterLevelSeriesDict[elementNo],
-                        run_date=run_date, run_time=run_time, opts=opts)
+                        run_date=run_date, run_time=run_time, opts=opts, flo2d_stations=flo2d_stations)
 
     except Exception as e:
         logger.error('JSON config data loading error.')
