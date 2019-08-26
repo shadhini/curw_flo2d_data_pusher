@@ -161,8 +161,6 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
 
     tms_meta = opts.get('tms_meta')
 
-    print("############### 2nd occurrence ############", flo2d_stations)
-
     tms_meta['latitude'] = str(flo2d_stations.get(elementNo)[1])
     tms_meta['longitude'] = str(flo2d_stations.get(elementNo)[2])
     tms_meta['station_id'] = flo2d_stations.get(elementNo)[0]
@@ -173,14 +171,16 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
 
         tms_id = TS.get_timeseries_id_if_exists(meta_data=tms_meta)
 
+        fgt = (datetime.now() + timedelta(hours=5, minutes=30)).strftime(COMMON_DATE_TIME_FORMAT)
+
         if tms_id is None:
             tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
             tms_meta['tms_id'] = tms_id
             TS.insert_run(run_meta=tms_meta)
-            TS.update_start_date(id_=tms_id, start_date=('%s %s' % (run_date, run_time)))
+            TS.update_start_date(id_=tms_id, start_date=fgt)
 
         TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
-        TS.update_latest_fgt(id_=tms_id, fgt=('%s %s' % (run_date, run_time)))
+        TS.update_latest_fgt(id_=tms_id, fgt=fgt)
 
     except Exception:
         logger.error("Exception occurred while pushing data to the curw_fcst database")
