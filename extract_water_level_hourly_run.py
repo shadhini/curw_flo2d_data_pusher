@@ -179,7 +179,7 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
             TS.insert_run(run_meta=tms_meta)
             TS.update_start_date(id_=tms_id, start_date=fgt)
 
-        TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
+        TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=fgt, upsert=True)
         TS.update_latest_fgt(id_=tms_id, fgt=fgt)
 
     except Exception:
