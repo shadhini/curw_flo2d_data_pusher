@@ -2,8 +2,10 @@ import json
 import traceback
 import sys
 import os
+from os.path import join as path_join
 from datetime import datetime, timedelta
 import re
+import csv
 
 from db_adapter.logger import logger
 from db_adapter.constants import COMMON_DATE_TIME_FORMAT, CURW_FCST_DATABASE, CURW_FCST_PASSWORD, CURW_FCST_USERNAME, \
@@ -15,7 +17,13 @@ from db_adapter.curw_fcst.unit import get_unit_id, UnitType
 from db_adapter.curw_fcst.station import get_flo2d_output_stations, StationEnum
 from db_adapter.curw_fcst.timeseries import Timeseries
 
-flo2d_stations = { }
+flo2d_stations = {}
+
+USERNAME = "root"
+PASSWORD = "password"
+HOST = "127.0.0.1"
+PORT = 3306
+DATABASE = "curw_fcst"
 
 
 def read_attribute_from_config_file(attribute, config, compulsory):
@@ -73,9 +81,9 @@ def get_water_level_of_channels(lines, channels=None):
     """
     if channels is None:
         channels = []
-    water_levels = { }
+    water_levels = {}
     for line in lines[1:]:
-        if line=='\n':
+        if line == '\n':
             break
         v = line.split()
         if v[0] in channels:
@@ -118,7 +126,7 @@ def extractForecastTimeseries(timeseries, extract_date, extract_time, by_day=Fal
     return new_timeseries
 
 
-def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, flo2d_stations):
+def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts):
     print('EXTRACTFLO2DWATERLEVEL:: save_forecast_timeseries >>', opts)
 
     # {
@@ -143,13 +151,11 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
         print('Shift by utcOffset:', opts['utcOffset'].resolution)
         for item in timeseries:
             forecast_timeseries.append(
-                    [datetime.strptime(item[0], COMMON_DATE_TIME_FORMAT) + opts['utcOffset'], item[1]])
+                [datetime.strptime(item[0], COMMON_DATE_TIME_FORMAT) + opts['utcOffset'], item[1]])
 
-        forecast_timeseries = extractForecastTimeseries(timeseries=forecast_timeseries, extract_date=run_date,
-                extract_time=run_time)
+        forecast_timeseries = extractForecastTimeseries(timeseries=forecast_timeseries, extract_date=run_date, extract_time=run_time)
     else:
-        forecast_timeseries = extractForecastTimeseries(timeseries=timeseries, extract_date=run_date,
-                extract_time=run_time)
+        forecast_timeseries = extractForecastTimeseries(timeseries=timeseries, extract_date=run_date, extract_time=run_time)
 
     elementNo = opts.get('elementNo')
 
@@ -165,45 +171,43 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
 
         tms_id = TS.get_timeseries_id_if_exists(meta_data=tms_meta)
 
-        fgt = (datetime.now() + timedelta(hours=5, minutes=30)).strftime(COMMON_DATE_TIME_FORMAT)
-
         if tms_id is None:
             tms_id = TS.generate_timeseries_id(meta_data=tms_meta)
             tms_meta['tms_id'] = tms_id
             TS.insert_run(run_meta=tms_meta)
-            TS.update_start_date(id_=tms_id, start_date=fgt)
+            TS.update_start_date(id_=tms_id, start_date=('%s %s' % (run_date, run_time)))
 
-        TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=fgt, upsert=True)
-        TS.update_latest_fgt(id_=tms_id, fgt=fgt)
+        TS.insert_data(timeseries=forecast_timeseries, tms_id=tms_id, fgt=('%s %s' % (run_date, run_time)), upsert=True)
+        TS.update_latest_fgt(id_=tms_id, fgt=('%s %s' % (run_date, run_time)))
 
     except Exception:
         logger.error("Exception occurred while pushing data to the curw_fcst database")
         traceback.print_exc()
 
 
-def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, run_time):
+if __name__=="__main__":
 
     """
-    Config.json
+    Config.json 
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
       "TIMDEP_FILE": "TIMDEP.OUT",
       "output_dir": "",
-
+    
       "run_date": "2019-05-24",
       "run_time": "",
       "ts_start_date": "",
       "ts_start_time": "",
       "utc_offset": "",
-
+    
       "sim_tag": "",
-
+    
       "model": "WRF",
       "version": "v3",
-
+    
       "unit": "mm",
       "unit_type": "Accumulative",
-
+    
       "variable": "Precipitation"
     }
 
@@ -215,12 +219,12 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         # flo2D related details
         HYCHAN_OUT_FILE = read_attribute_from_config_file('HYCHAN_OUT_FILE', config, True)
         TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
-        output_dir = dir_path
+        output_dir = read_attribute_from_config_file('output_dir', config, True)
 
-        run_date = run_date
-        run_time = run_time
-        ts_start_date = ts_start_date
-        ts_start_time = ts_start_time
+        run_date = read_attribute_from_config_file('run_date', config, True)
+        run_time = read_attribute_from_config_file('run_time', config, True)
+        ts_start_date = read_attribute_from_config_file('ts_start_date', config, True)
+        ts_start_time = read_attribute_from_config_file('ts_start_time', config, True)
         utc_offset = read_attribute_from_config_file('utc_offset', config, False)
         if utc_offset is None:
             utc_offset = ''
@@ -242,14 +246,14 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         hychan_out_file_path = os.path.join(output_dir, HYCHAN_OUT_FILE)
         timdep_file_path = os.path.join(output_dir, TIMDEP_FILE)
 
-        pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, db=CURW_FCST_DATABASE, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD)
+        # pool = get_Pool(host=CURW_FCST_HOST, port=CURW_FCST_PORT, db=CURW_FCST_DATABASE, user=CURW_FCST_USERNAME, password=CURW_FCST_PASSWORD)
+
+        pool = get_Pool(host=HOST, port=PORT, user=USERNAME, password=PASSWORD, db=DATABASE)
 
         flo2d_model_name = '{}_{}'.format(model, version)
 
         flo2d_source = json.loads(get_source_parameters(pool=pool, model=model, version=version))
         flo2d_stations = get_flo2d_output_stations(pool=pool, flo2d_model=StationEnum.getType(flo2d_model_name))
-
-        print("############### 1st occurrence ############", flo2d_stations)
 
         source_id = get_source_id(pool=pool, model=model, version=version)
 
@@ -258,15 +262,15 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         unit_id = get_unit_id(pool=pool, unit=unit, unit_type=unit_type)
 
         tms_meta = {
-                'sim_tag'    : sim_tag,
-                'model'      : model,
-                'version'    : version,
-                'variable'   : variable,
-                'unit'       : unit,
-                'unit_type'  : unit_type.value,
-                'source_id'  : source_id,
+                'sim_tag'  : sim_tag,
+                'model'    : model,
+                'version'  : version,
+                'variable' : variable,
+                'unit'     : unit,
+                'unit_type': unit_type.value,
+                'source_id': source_id,
                 'variable_id': variable_id,
-                'unit_id'    : unit_id
+                'unit_id'   : unit_id
                 }
 
         CHANNEL_CELL_MAP = flo2d_source["CHANNEL_CELL_MAP"]
@@ -280,13 +284,12 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
         utcOffset = getUTCOffset(utc_offset, default=True)
 
-        print('Extract Water Level Result of FLO2D on', run_date, '@', run_time, 'with Base time of', ts_start_date,
-                '@', ts_start_time)
+        print('Extract Water Level Result of FLO2D on', run_date, '@', run_time, 'with Base time of', ts_start_date, '@', ts_start_time)
 
         # Check HYCHAN.OUT file exists
         if not os.path.exists(hychan_out_file_path):
             print('Unable to find file : ', hychan_out_file_path)
-            traceback.print_exc()
+            sys.exit()
 
         #####################################
         # Calculate the size of time series #
@@ -317,8 +320,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         #################################################################
         # Extract Channel Water Level elevations from HYCHAN.OUT file   #
         #################################################################
-        print('Extract Channel Water Level Result of FLO2D (HYCHAN.OUT) on', run_date, '@', run_time,
-                'with Base time of',
+        print('Extract Channel Water Level Result of FLO2D (HYCHAN.OUT) on', run_date, '@', run_time, 'with Base time of',
                 ts_start_date, '@', ts_start_time)
         with open(hychan_out_file_path) as infile:
             isWaterLevelLines = False
@@ -374,8 +376,8 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
                         # Save Forecast values into Database
                         opts = {
-                                'elementNo': elementNo,
-                                'tms_meta' : tms_meta
+                                'elementNo'    : elementNo,
+                                'tms_meta'   : tms_meta
                                 }
                         # print('>>>>>', opts)
                         if utcOffset!=timedelta():
@@ -383,7 +385,7 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
                         # Push timeseries to database
                         save_forecast_timeseries_to_db(pool=pool, timeseries=timeseries,
-                                run_date=run_date, run_time=run_time, opts=opts, flo2d_stations=flo2d_stations)
+                                run_date=run_date, run_time=run_time, opts=opts)
 
                         isWaterLevelLines = False
                         isSeriesComplete = False
@@ -397,10 +399,9 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
         if not os.path.exists(timdep_file_path):
             print('Unable to find file : ', timdep_file_path)
-            traceback.print_exc()
+            sys.exit()
 
-        print('Extract Flood Plain Water Level Result of FLO2D (TIMEDEP.OUT) on', run_date, '@', run_time,
-                'with Base time of', ts_start_date,
+        print('Extract Flood Plain Water Level Result of FLO2D (TIMEDEP.OUT) on', run_date, '@', run_time, 'with Base time of', ts_start_date,
                 '@', ts_start_time)
 
         with open(timdep_file_path) as infile:
@@ -442,15 +443,15 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
 
                 # Save Forecast values into Database
                 opts = {
-                        'elementNo': elementNo,
-                        'tms_meta' : tms_meta
+                        'elementNo'    : elementNo,
+                        'tms_meta'   : tms_meta
                         }
                 if utcOffset!=timedelta():
                     opts['utcOffset'] = utcOffset
 
                 # Push timeseries to database
                 save_forecast_timeseries_to_db(pool=pool, timeseries=waterLevelSeriesDict[elementNo],
-                        run_date=run_date, run_time=run_time, opts=opts, flo2d_stations=flo2d_stations)
+                        run_date=run_date, run_time=run_time, opts=opts)
 
     except Exception as e:
         logger.error('JSON config data loading error.')
