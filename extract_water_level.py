@@ -181,10 +181,10 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
         traceback.print_exc()
 
 
-def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, run_time):
+if __name__ == "__main__":
 
     """
-    Config.json
+    Config.json 
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
       "TIMDEP_FILE": "TIMDEP.OUT",
@@ -215,12 +215,13 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
         # flo2D related details
         HYCHAN_OUT_FILE = read_attribute_from_config_file('HYCHAN_OUT_FILE', config, True)
         TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
-        output_dir = dir_path
+        output_dir = read_attribute_from_config_file('output_dir', config, True)
 
-        run_date = run_date
-        run_time = run_time
-        ts_start_date = ts_start_date
-        ts_start_time = ts_start_time
+        run_date = read_attribute_from_config_file('run_date', config, True)
+        run_time = read_attribute_from_config_file('run_time', config, True)
+        ts_start_date = read_attribute_from_config_file('ts_start_date', config, True)
+        ts_start_time = read_attribute_from_config_file('ts_start_time', config, True)
+
         utc_offset = read_attribute_from_config_file('utc_offset', config, False)
         if utc_offset is None:
             utc_offset = ''
