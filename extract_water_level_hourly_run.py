@@ -194,23 +194,23 @@ def upload_waterlevels_curw(dir_path, ts_start_date, ts_start_time, run_date, ru
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
       "TIMDEP_FILE": "TIMDEP.OUT",
-      "output_dir": "",
+      "output_dir": "/home/shadhini/dev/repos/shadhini/flo2d_data_pusher/2019-05-24_Kelani",
 
       "run_date": "2019-05-24",
-      "run_time": "",
-      "ts_start_date": "",
-      "ts_start_time": "",
+      "run_time": "00:00:00",
+      "ts_start_date": "2019-05-24",
+      "ts_start_time": "00:00:00",
       "utc_offset": "",
 
-      "sim_tag": "",
+      "sim_tag": "manual_run",
 
-      "model": "WRF",
-      "version": "v3",
+      "model": "FLO2D",
+      "version": "250",
 
-      "unit": "mm",
-      "unit_type": "Accumulative",
+      "unit": "m",
+      "unit_type": "Instantaneous",
 
-      "variable": "Precipitation"
+      "variable": "WaterLevel"
     }
 
     """

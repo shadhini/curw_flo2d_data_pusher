@@ -188,23 +188,23 @@ if __name__ == "__main__":
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
       "TIMDEP_FILE": "TIMDEP.OUT",
-      "output_dir": "",
-
+      "output_dir": "/home/shadhini/dev/repos/shadhini/flo2d_data_pusher/2019-05-24_Kelani",
+    
       "run_date": "2019-05-24",
-      "run_time": "",
-      "ts_start_date": "",
-      "ts_start_time": "",
+      "run_time": "00:00:00",
+      "ts_start_date": "2019-05-24",
+      "ts_start_time": "00:00:00",
       "utc_offset": "",
-
-      "sim_tag": "",
-
-      "model": "WRF",
-      "version": "v3",
-
-      "unit": "mm",
-      "unit_type": "Accumulative",
-
-      "variable": "Precipitation"
+    
+      "sim_tag": "manual_run",
+    
+      "model": "FLO2D",
+      "version": "250",
+    
+      "unit": "m",
+      "unit_type": "Instantaneous",
+    
+      "variable": "WaterLevel"
     }
 
     """
