@@ -1,9 +1,11 @@
+
 import json
 import traceback
 import sys
 import os
 from datetime import datetime, timedelta
 import re
+import getopt
 
 from db_adapter.logger import logger
 from db_adapter.constants import COMMON_DATE_TIME_FORMAT, CURW_FCST_DATABASE, CURW_FCST_PASSWORD, CURW_FCST_USERNAME, \
@@ -33,6 +35,23 @@ def read_attribute_from_config_file(attribute, config, compulsory):
     else:
         logger.error("{} not specified in config file.".format(attribute))
         return None
+
+
+def check_time_format(time):
+    try:
+        time = datetime.strptime(time, COMMON_DATE_TIME_FORMAT)
+
+        if time.strftime('%S') != '00':
+            print("Seconds should be always 00")
+            exit(1)
+        if time.strftime('%M') not in ('00', '15', '30', '45'):
+            print("Minutes should be always multiples of 15")
+            exit(1)
+
+        return True
+    except Exception:
+        print("Time {} is not in proper format".format(time))
+        exit(1)
 
 
 def getUTCOffset(utcOffset, default=False):
@@ -181,6 +200,20 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
         traceback.print_exc()
 
 
+def usage():
+    usageText = """
+    Usage: .\extract_water_level_manually.py [-m flo2d_XXX] [-s "YYYY-MM-DD HH:MM:SS"] [-r "YYYY-MM-DD HH:MM:SS"] 
+    [-d "D:\inflow\flo2d_hourly\output"]
+
+    -h  --help          Show usage
+    -m  --model         FLO2D model (e.g. flo2d_250, flo2d_150).
+    -s  --ts_start_time Timeseries start time (e.g: "2019-06-05 23:00:00").
+    -r  --run_time      Run time (e.g: "2019-06-05 23:00:00").
+    -d  --dir           Output directory (e.g. "D:\inflow\flo2d_hourly\output")
+    """
+    print(usageText)
+
+
 if __name__ == "__main__":
 
     """
@@ -188,39 +221,92 @@ if __name__ == "__main__":
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
       "TIMDEP_FILE": "TIMDEP.OUT",
-      "output_dir": "",
-
+      "output_dir": "/home/shadhini/dev/repos/shadhini/flo2d_data_pusher/2019-05-24_Kelani",
+    
       "run_date": "2019-05-24",
-      "run_time": "",
-      "ts_start_date": "",
-      "ts_start_time": "",
+      "run_time": "00:00:00",
+      "ts_start_date": "2019-05-24",
+      "ts_start_time": "00:00:00",
       "utc_offset": "",
-
-      "sim_tag": "",
-
-      "model": "WRF",
-      "version": "v3",
-
-      "unit": "mm",
-      "unit_type": "Accumulative",
-
-      "variable": "Precipitation"
+    
+      "sim_tag": "manual_run",
+    
+      "model": "FLO2D",
+      "version": "250",
+    
+      "unit": "m",
+      "unit_type": "Instantaneous",
+    
+      "variable": "WaterLevel"
     }
 
     """
     try:
+
+        print("started extracting flo2d output")
+        in_ts_start_time = None
+        in_run_time = None
+        flo2d_model = None
+        output_dir = None
+
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], "h:m:s:r:d:",
+                                       ["help", "model=", "ts_start_time=", "run_time=", "dir="])
+        except getopt.GetoptError:
+            usage()
+            sys.exit(2)
+        for opt, arg in opts:
+            if opt in ("-h", "--help"):
+                usage()
+                sys.exit()
+            elif opt in ("-m", "--model"):
+                flo2d_model = arg.strip()
+            elif opt in ("-s", "--ts_start_time"):
+                in_ts_start_time = arg.strip()
+            elif opt in ("-r", "--run_time"):
+                in_run_time = arg.strip()
+            elif opt in ("-d", "--dir"):
+                output_dir = arg.strip()
 
         config = json.loads(open('config.json').read())
 
         # flo2D related details
         HYCHAN_OUT_FILE = read_attribute_from_config_file('HYCHAN_OUT_FILE', config, True)
         TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
-        output_dir = read_attribute_from_config_file('output_dir', config, True)
 
-        run_date = read_attribute_from_config_file('run_date', config, True)
-        run_time = read_attribute_from_config_file('run_time', config, True)
-        ts_start_date = read_attribute_from_config_file('ts_start_date', config, True)
-        ts_start_time = read_attribute_from_config_file('ts_start_time', config, True)
+        if in_ts_start_time is None:
+            print("Please specify the time series start time.")
+            usage()
+            exit(1)
+        if in_run_time is None:
+            print("Please specify run time.")
+            usage()
+            exit(1)
+        if flo2d_model is None:
+            print("Please specify flo2d model.")
+            usage()
+            exit(1)
+        if output_dir is None:
+            print("Please specify flo2d output directory.")
+            usage()
+            exit(1)
+
+        if not os.path.isdir(output_dir):
+            print("Given output directory doesn't exist")
+            exit(1)
+        if flo2d_model not in ("flo2d_250", "flo2d_150"):
+            print("Flo2d model should be either \"flo2d_250\" or \"flo2d_150\"")
+            exit(1)
+
+        check_time_format(in_ts_start_time)
+        check_time_format(in_run_time)
+
+        output_dir = output_dir
+
+        run_date = in_run_time.striftime("%Y-%m-%d")
+        run_time = in_run_time.striftime("%H:%M:%S")
+        ts_start_date = in_ts_start_time.striftime("%Y-%m-%d")
+        ts_start_time = in_ts_start_time.striftime("%H:%M:%S")
 
         utc_offset = read_attribute_from_config_file('utc_offset', config, False)
         if utc_offset is None:
@@ -231,7 +317,7 @@ if __name__ == "__main__":
 
         # source details
         model = read_attribute_from_config_file('model', config, True)
-        version = read_attribute_from_config_file('version', config, True)
+        version = flo2d_model.split("_")[1]
 
         # unit details
         unit = read_attribute_from_config_file('unit', config, True)
