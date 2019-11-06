@@ -250,8 +250,6 @@ if __name__ == "__main__":
         flo2d_source = json.loads(get_source_parameters(pool=pool, model=model, version=version))
         flo2d_stations = get_flo2d_output_stations(pool=pool, flo2d_model=StationEnum.getType(flo2d_model_name))
 
-        print("############### 1st occurrence ############", flo2d_stations)
-
         source_id = get_source_id(pool=pool, model=model, version=version)
 
         variable_id = get_variable_id(pool=pool, variable=variable)
