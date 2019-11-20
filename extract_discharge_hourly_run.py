@@ -183,37 +183,30 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
 def upload_discharges(dir_path, ts_start_date, ts_start_time, run_date, run_time):
 
     """
-    Config.json
+    dis_config.json
     {
       "HYCHAN_OUT_FILE": "HYCHAN.OUT",
-      "TIMDEP_FILE": "TIMDEP.OUT",
-      "output_dir": "",
 
-      "run_date": "2019-05-24",
-      "run_time": "",
-      "ts_start_date": "",
-      "ts_start_time": "",
       "utc_offset": "",
 
-      "sim_tag": "",
+      "sim_tag": "hourly_run",
 
-      "model": "WRF",
-      "version": "v3",
+      "model": "FLO2D",
+      "version": "250",
 
-      "unit": "mm",
-      "unit_type": "Accumulative",
+      "unit": "m3/s",
+      "unit_type": "Instantaneous",
 
-      "variable": "Precipitation"
+      "variable": "Discharge"
     }
 
     """
     try:
-        config_path = os.path.join(os.getcwd(), 'extract', 'config.json')
+        config_path = os.path.join(os.getcwd(), 'extract', 'dis_config.json')
         config = json.loads(open(config_path).read())
 
         # flo2D related details
         HYCHAN_OUT_FILE = read_attribute_from_config_file('HYCHAN_OUT_FILE', config, True)
-        TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
         output_dir = dir_path
 
         run_date = run_date
@@ -389,8 +382,6 @@ def upload_discharges(dir_path, ts_start_date, ts_start_time, run_date, run_time
             # -- END while loop
 
     except Exception as e:
-        logger.error('JSON config data loading error.')
-        print('JSON config data loading error.')
         traceback.print_exc()
     finally:
         logger.info("Process finished.")

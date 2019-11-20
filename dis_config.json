@@ -1,0 +1,15 @@
+{
+  "HYCHAN_OUT_FILE": "HYCHAN.OUT",
+
+  "utc_offset": "",
+
+  "sim_tag": "hourly_run",
+
+  "model": "FLO2D",
+  "version": "250",
+
+  "unit": "m3/s",
+  "unit_type": "Instantaneous",
+
+  "variable": "Discharge"
+}
