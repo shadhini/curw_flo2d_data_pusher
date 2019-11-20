@@ -461,8 +461,6 @@ def upload_waterlevels(dir_path, ts_start_date, ts_start_time, run_date, run_tim
                         run_date=run_date, run_time=run_time, opts=opts, flo2d_stations=flo2d_stations, fgt=fgt)
 
     except Exception as e:
-        logger.error('JSON config data loading error.')
-        print('JSON config data loading error.')
         traceback.print_exc()
     finally:
         logger.info("Process finished.")
