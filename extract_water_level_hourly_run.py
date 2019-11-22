@@ -5,7 +5,6 @@ import os
 from datetime import datetime, timedelta
 import re
 
-from db_adapter.logger import logger
 from db_adapter.constants import COMMON_DATE_TIME_FORMAT, CURW_FCST_DATABASE, CURW_FCST_PASSWORD, CURW_FCST_USERNAME, \
     CURW_FCST_PORT, CURW_FCST_HOST
 from db_adapter.base import get_Pool
@@ -34,10 +33,10 @@ def read_attribute_from_config_file(attribute, config, compulsory):
     if attribute in config and (config[attribute]!=""):
         return config[attribute]
     elif compulsory:
-        logger.error("{} not specified in config file.".format(attribute))
+        print("{} not specified in config file.".format(attribute))
         exit(1)
     else:
-        logger.error("{} not specified in config file.".format(attribute))
+        print("{} not specified in config file.".format(attribute))
         return None
 
 
@@ -181,7 +180,7 @@ def save_forecast_timeseries_to_db(pool, timeseries, run_date, run_time, opts, f
         TS.update_latest_fgt(id_=tms_id, fgt=fgt)
 
     except Exception:
-        logger.error("Exception occurred while pushing data to the curw_fcst database")
+        print("Exception occurred while pushing data to the curw_fcst database")
         traceback.print_exc()
 
 
@@ -463,5 +462,4 @@ def upload_waterlevels(dir_path, ts_start_date, ts_start_time, run_date, run_tim
     except Exception as e:
         traceback.print_exc()
     finally:
-        logger.info("Process finished.")
         print("Process finished.")
