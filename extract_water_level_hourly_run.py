@@ -221,8 +221,8 @@ def upload_waterlevels(dir_path, ts_start_date, ts_start_time, run_date, run_tim
         TIMDEP_FILE = read_attribute_from_config_file('TIMDEP_FILE', config, True)
         output_dir = dir_path
 
-        run_date = run_date
-        run_time = run_time
+        run_date = ts_start_date
+        run_time = ts_start_time
         ts_start_date = ts_start_date
         ts_start_time = ts_start_time
         utc_offset = read_attribute_from_config_file('utc_offset', config, False)
